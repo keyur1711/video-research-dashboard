@@ -20,7 +20,9 @@ const state = {
         youtubeActorId: '',
         
         // Transcription
+        transcriptionProvider: 'deapi',
         transcribeToken: '',
+        deapiToken: '',
         
         // Google Sheets
         sheetId: '',
@@ -95,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function isTeamConfigActive() {
     const c = window.TEAM_CONFIG;
-    return c && c.useTeamConfig && (c.apifyToken || c.getTranscribeKey);
+    return c && c.useTeamConfig && (c.apifyToken || c.getTranscribeKey || c.deapiKey);
 }
 
 function applyTeamConfig() {
@@ -107,6 +109,24 @@ function applyTeamConfig() {
         state.settings.youtubeApiToken = c.apifyToken;
     }
     if (c.getTranscribeKey) state.settings.transcribeToken = c.getTranscribeKey;
+    if (c.deapiKey) {
+        state.settings.deapiToken = c.deapiKey;
+        state.settings.transcriptionProvider = 'deapi';
+    }
+}
+
+function hasTranscriptionConfigured() {
+    const p = state.settings.transcriptionProvider || 'gettranscribe';
+    if (p === 'deapi') return !!(state.settings.deapiToken && state.settings.deapiToken.trim());
+    return !!(state.settings.transcribeToken && state.settings.transcribeToken.trim());
+}
+
+function toggleTranscriptionProviderFields() {
+    const provider = (document.getElementById('transcriptionProvider') || {}).value || 'deapi';
+    const gtRow = document.getElementById('gettranscribeRow');
+    const deapiRow = document.getElementById('deapiRow');
+    if (gtRow) gtRow.style.display = provider === 'gettranscribe' ? 'block' : 'none';
+    if (deapiRow) deapiRow.style.display = provider === 'deapi' ? 'block' : 'none';
 }
 
 // ===================================
@@ -123,6 +143,11 @@ function loadSettings() {
             state.settings.instagramApiToken = parsed.instagramApiToken || '';
             state.settings.youtubeApiToken = parsed.youtubeApiToken || '';
             state.settings.transcribeToken = parsed.transcribeToken || '';
+            state.settings.deapiToken = parsed.deapiToken || '';
+        }
+        state.settings.transcriptionProvider = parsed.transcriptionProvider || 'deapi';
+        if (isTeamConfigActive() && window.TEAM_CONFIG && window.TEAM_CONFIG.deapiKey) {
+            state.settings.transcriptionProvider = 'deapi';
         }
         state.settings.tiktokActorId = parsed.tiktokActorId || '';
         state.settings.instagramActorId = parsed.instagramActorId || '';
@@ -146,6 +171,16 @@ function loadSettings() {
     document.getElementById('transcribeToken').value = teamMode ? '' : (state.settings.transcribeToken || '');
     document.getElementById('transcribeToken').placeholder = transPlaceholder;
     document.getElementById('transcribeToken').readOnly = teamMode;
+    const provEl = document.getElementById('transcriptionProvider');
+    if (provEl) provEl.value = state.settings.transcriptionProvider || 'deapi';
+    const deapiEl = document.getElementById('deapiToken');
+    if (deapiEl) {
+        const teamDeapi = teamMode && window.TEAM_CONFIG && window.TEAM_CONFIG.deapiKey;
+        deapiEl.value = teamDeapi ? '' : (state.settings.deapiToken || '');
+        deapiEl.placeholder = teamDeapi ? '•••••••• (set by team)' : 'Your deAPI token';
+        deapiEl.readOnly = teamDeapi;
+    }
+    toggleTranscriptionProviderFields();
     document.getElementById('tiktokActorId').value = state.settings.tiktokActorId || '';
     document.getElementById('instagramActorId').value = state.settings.instagramActorId || '';
     document.getElementById('youtubeActorId').value = state.settings.youtubeActorId || '';
@@ -166,7 +201,9 @@ function saveSettings() {
         state.settings.instagramApiToken = document.getElementById('instagramApiToken').value;
         state.settings.youtubeApiToken = document.getElementById('youtubeApiToken').value;
         state.settings.transcribeToken = document.getElementById('transcribeToken').value;
+        state.settings.deapiToken = (document.getElementById('deapiToken') || {}).value || '';
     }
+    state.settings.transcriptionProvider = (document.getElementById('transcriptionProvider') || {}).value || 'deapi';
     state.settings.tiktokActorId = document.getElementById('tiktokActorId').value;
     state.settings.instagramActorId = document.getElementById('instagramActorId').value;
     state.settings.youtubeActorId = document.getElementById('youtubeActorId').value;
@@ -688,8 +725,8 @@ async function startTranscription() {
 
     const urls = urlsText.split('\n').map(url => url.trim()).filter(Boolean);
     const hasNonYouTube = urls.some(u => !getYouTubeVideoId(u));
-    if (hasNonYouTube && !state.settings.transcribeToken) {
-        showStatus('transcriptionStatus', 'Please configure your GetTranscribe API key in Settings (required for TikTok/Instagram).', 'error');
+    if (hasNonYouTube && !hasTranscriptionConfigured()) {
+        showStatus('transcriptionStatus', 'Please set a transcription API (deAPI or GetTranscribe) in Settings for TikTok/Instagram.', 'error');
         return;
     }
 
@@ -714,7 +751,7 @@ async function startTranscription() {
         }
 
         // Use GetTranscribe for non-YouTube or when YouTube captions failed
-        if (!state.settings.transcribeToken) {
+        if (!hasTranscriptionConfigured()) {
             results.push({
                 url,
                 transcript: '',
@@ -900,13 +937,21 @@ async function tryYouTubeCaptions(videoId) {
 }
 
 async function transcribeVideo(url) {
+    const trimmedUrl = url.trim();
+    const provider = state.settings.transcriptionProvider || 'deapi';
+
+    if (provider === 'deapi' && state.settings.deapiToken) {
+        return transcribeWithDeAPI(trimmedUrl);
+    }
+
+    // GetTranscribe
     const response = await fetch('https://api.gettranscribe.ai/transcriptions', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'x-api-key': state.settings.transcribeToken
         },
-        body: JSON.stringify({ url: url.trim(), language: 'en' })
+        body: JSON.stringify({ url: trimmedUrl, language: 'en' })
     });
 
     if (!response.ok) {
@@ -915,13 +960,73 @@ async function transcribeVideo(url) {
     }
 
     const data = await response.json();
-
-    // API returns "transcription" (not "transcript" or "text")
     const text = data.transcription || data.transcript || data.text;
     if (!text || (typeof text === 'string' && text.trim().length === 0)) {
         throw new Error('Transcript not available for this video');
     }
     return typeof text === 'string' ? text : String(text);
+}
+
+// deAPI: video-to-text (YouTube, TikTok, etc.) — https://deapi.ai
+// API returns request_id then we poll request-status until done.
+async function transcribeWithDeAPI(url) {
+    const token = (state.settings.deapiToken || '').trim();
+    if (!token) throw new Error('deAPI token not set in Settings');
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + token
+    };
+    const res = await fetch('https://api.deapi.ai/api/v1/client/vid2txt', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ video_url: url, model: 'WhisperLargeV3', include_ts: false })
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error('deAPI error: ' + (err || res.status));
+    }
+    const postData = await res.json();
+    const requestId = (postData.data && postData.data.request_id) || postData.request_id;
+    if (!requestId) {
+        // Maybe sync response with result (e.g. return_result_in_response)
+        const direct = postData.data && (postData.data.result || postData.data.transcript);
+        if (direct && String(direct).trim()) return String(direct).trim();
+        throw new Error('deAPI did not return a request ID');
+    }
+    const maxAttempts = 60;
+    const intervalMs = 2000;
+    for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, i === 0 ? 1500 : intervalMs));
+        const statusRes = await fetch('https://api.deapi.ai/api/v1/client/request-status/' + requestId, { headers });
+        if (!statusRes.ok) throw new Error('deAPI status check failed: ' + statusRes.status);
+        const statusData = await statusRes.json();
+        const info = statusData.data || statusData;
+        const status = info.status;
+        if (status === 'error') {
+            const msg = info.message || statusData.message || 'Transcription failed';
+            throw new Error('deAPI: ' + msg);
+        }
+        if (status === 'done') {
+            const text = info.result || info.transcript || (info.result_url && await fetchResultUrl(info.result_url, headers));
+            if (text && String(text).trim()) return String(text).trim();
+            throw new Error('Transcript not available from deAPI');
+        }
+        // pending or processing: keep polling
+    }
+    throw new Error('deAPI transcription timed out');
+}
+
+async function fetchResultUrl(url, headers) {
+    const res = await fetch(url, { headers: { 'Authorization': headers['Authorization'] } });
+    if (!res.ok) return '';
+    const text = await res.text();
+    try {
+        const j = JSON.parse(text);
+        return j.result || j.transcript || j.text || (Array.isArray(j.segments) && j.segments.map(s => s.text || s).join(' ')) || text;
+    } catch (_) {
+        return text;
+    }
 }
 
 

@@ -661,9 +661,23 @@
                 <h2 class="card-title">Transcription API</h2>
 
                 <div class="form-group">
+                    <label>Transcription provider</label>
+                    <select id="transcriptionProvider" onchange="toggleTranscriptionProviderFields()">
+                        <option value="deapi">deAPI (recommended — YouTube, TikTok, Instagram)</option>
+                        <!-- <option value="gettranscribe">GetTranscribe</option> -->
+                    </select>
+                </div>
+
+                <div id="deapiRow" class="form-group">
+                    <label>deAPI Key</label>
+                    <input type="text" id="deapiToken" placeholder="Your deAPI token">
+                    <p class="help-text">Get $5 free credits at <a href="https://deapi.ai/register" target="_blank" rel="noopener" class="link">deapi.ai/register</a>. Supports YouTube, TikTok, Instagram URLs.</p>
+                </div>
+
+                <div id="gettranscribeRow" class="form-group" style="display: none;">
                     <label>GetTranscribe API Key</label>
                     <input type="text" id="transcribeToken" placeholder="gtr_...">
-                    <p class="help-text">Get your key from <a href="https://gettranscribe.com" target="_blank" class="link">GetTranscribe Dashboard</a></p>
+                    <p class="help-text">Get your key from <a href="https://gettranscribe.com" target="_blank" rel="noopener" class="link">GetTranscribe Dashboard</a></p>
                 </div>
             </div>
 
@@ -707,11 +721,16 @@
 
     <!-- Team API config: set useTeamConfig true and add keys so the whole team can use the site without entering them in Settings -->
     <script>
+    // window.TEAM_CONFIG = {
+    //     useTeamConfig: true,
+    //     apifyToken: 'apify_api_36Cw17e9xBqjASJE1GRVYwHiRPAR1P2mafom',
+    //     getTranscribeKey: 'gtr_dbfe5f2fc2237502b64fd71e9396b6642643c09c53f44f62fb75af0af072e51a'
+    // };
     window.TEAM_CONFIG = {
-        useTeamConfig: true,
-        apifyToken: 'apify_api_36Cw17e9xBqjASJE1GRVYwHiRPAR1P2mafom',
-        getTranscribeKey: 'gtr_dbfe5f2fc2237502b64fd71e9396b6642643c09c53f44f62fb75af0af072e51a'
-    };
+    useTeamConfig: true,
+    apifyToken: 'apify_api_36Cw17e9xBqjASJE1GRVYwHiRPAR1P2mafom',
+    deapiKey: '3752|PoXWPe6fja8z9pghc7DjO72QSTBUjwNHgHqFLjJ12aeb59bc'
+};
     </script>
     <script src="app.js"></script>
 </body>
