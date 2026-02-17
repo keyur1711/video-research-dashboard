@@ -87,10 +87,6 @@ function corsfetch(url, options = {}) {
 
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
-    if (window.location.protocol === 'file:') {
-        const notice = document.getElementById('file-origin-notice');
-        if (notice) notice.style.display = 'block';
-    }
 });
 
 // ===================================
@@ -812,15 +808,50 @@ async function fetchViaProxy(url) {
     return null;
 }
 
-// Try to get captions from YouTube (no API key). Uses embed page (smaller, avoids 413).
+// Try to get captions from YouTube (no API key). Tries: TubeText API → direct timedtext (small) → embed page.
 async function tryYouTubeCaptions(videoId) {
-    // Prefer embed page: much smaller than watch page, avoids "413 Payload Too Large" from proxies
-    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+    // 1. Try TubeText free API (CORS-friendly, no proxy)
     try {
+        const ttRes = await fetch('https://tubetext.vercel.app/youtube/transcript?video_id=' + encodeURIComponent(videoId));
+        if (ttRes && ttRes.ok) {
+            const data = await ttRes.json();
+            let text = data.transcript || data.text || data.full_transcript
+                || (data.transcript_segments && data.transcript_segments.map(s => s.text || s).join(' '))
+                || (Array.isArray(data) && data.map(s => s.text || s).join(' '))
+                || '';
+            if (typeof text !== 'string') text = String(text);
+            text = text.replace(/<[^>]+>/g, '').trim();
+            if (text.length > 20) return text;
+        }
+    } catch (_) {}
+
+    // 2. Try direct timedtext URL via proxy (small response, no 413)
+    try {
+        const timedtextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en`;
+        const capRes = await fetchViaProxy(timedtextUrl);
+        if (capRes && capRes.ok) {
+            const body = await capRes.text();
+            if (body && body.length > 10) {
+                const textNodes = body.match(/<text[^>]*>([^<]*)<\/text>/g);
+                if (textNodes && textNodes.length > 0) {
+                    const text = textNodes
+                        .map(n => n.replace(/<text[^>]*>|<\/text>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'))
+                        .join(' ')
+                        .trim();
+                    if (text.length > 20) return text;
+                }
+                const plain = body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                if (plain.length > 20) return plain;
+            }
+        }
+    } catch (_) {}
+
+    // 3. Try embed page → extract caption track URL → fetch (may 413 on some proxies)
+    try {
+        const embedUrl = `https://www.youtube.com/embed/${videoId}`;
         const pageRes = await fetchViaProxy(embedUrl);
         if (!pageRes || !pageRes.ok) return null;
         const html = await pageRes.text();
-        // 2. Extract baseUrl from captionTracks in page JSON (multiple patterns for different page versions)
         let captionUrl = null;
         const patterns = [
             /"baseUrl"\s*:\s*"(https?:\\?\/\\?\/[^"]+timedtext[^"]*)"/,
@@ -835,18 +866,12 @@ async function tryYouTubeCaptions(videoId) {
                 captionUrl = null;
             }
         }
-        if (!captionUrl) {
-            // Fallback: direct timedtext (works for some videos)
-            captionUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en`;
-        } else {
-            captionUrl += (captionUrl.includes('?') ? '&' : '?') + 'fmt=json3';
-        }
-        // 3. Fetch caption content via proxy
+        if (!captionUrl) captionUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en`;
+        else captionUrl += (captionUrl.includes('?') ? '&' : '?') + 'fmt=json3';
         const capRes = await fetchViaProxy(captionUrl);
         if (!capRes || !capRes.ok) return null;
         const body = await capRes.text();
         if (!body || body.length < 5) return null;
-        // 4. Parse: json3 format has events[].segs[].utf8, XML has <text>...</text>
         try {
             const json = JSON.parse(body);
             if (json.events) {
