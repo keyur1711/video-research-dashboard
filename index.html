@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Research Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #fdfcfb;
+            --bg-secondary: #f7f6f4;
+            --bg-tertiary: #fff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b6b6b;
+            --text-tertiary: #9b9b9b;
+            --accent: #2d5a3d;
+            --accent-light: #e8f0ea;
+            --border: #e8e7e5;
+            --shadow: rgba(0, 0, 0, 0.04);
+            --shadow-hover: rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 2rem;
+        }
+
+        h1 {
+            font-family: 'Crimson Pro', serif;
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 400;
+        }
+
+        .notice {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: var(--accent-light);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-tab {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s ease;
+        }
+
+        .nav-tab.active {
+            color: var(--accent);
+        }
+
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px var(--shadow);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px var(--shadow-hover);
+        }
+
+        .card-title {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.3rem;
+            font-weight: 400;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--bg-tertiary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .date-range-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .date-range-container:focus-within {
+            border-color: var(--accent);
+            background: var(--bg-tertiary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .date-range-container input[type="date"] {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 0.5rem;
+            margin: 0;
+            font-size: 0.9rem;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        .date-range-container input[type="date"]:focus {
+            outline: none;
+            border: none;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        /* Ensure calendar icon is visible and clickable */
+        .date-range-container input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.6;
+            padding: 0.25rem;
+        }
+
+        .date-range-container input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
+
+        .date-separator {
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 0 0.25rem;
+            user-select: none;
+        }
+
+        button {
+            padding: 0.85rem 2rem;
+            border: none;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #234831;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(45, 90, 61, 0.2);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 1rem;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .results-table {
+            width: 100%;
+            margin-top: 2rem;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .results-table thead {
+            background: var(--bg-secondary);
+        }
+
+        .results-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .results-table tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        .results-table tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .video-thumbnail {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .platform-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .platform-tiktok {
+            background: #ffe5f0;
+            color: #d4006f;
+        }
+
+        .platform-instagram {
+            background: #fff0e5;
+            color: #c44900;
+        }
+
+        .platform-youtube {
+            background: #ffe5e5;
+            color: #c41e1e;
+        }
+
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .status-success {
+            background: var(--accent-light);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .status-error {
+            background: #fff0f0;
+            color: #c41e1e;
+            border: 1px solid #c41e1e;
+        }
+
+        .status-info {
+            background: #f0f5ff;
+            color: #1e4dc4;
+            border: 1px solid #1e4dc4;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-tertiary);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+            margin-top: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .link {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+
+        .link:hover {
+            border-bottom-color: var(--accent);
+        }
+
+        .transcript-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Video Research Dashboard</h1>
+            <p class="subtitle">Discover trending social videos and transcribe content at scale</p>
+            <div class="notice">
+                ⚠️ <strong>Important:</strong> This dashboard requires third-party API keys
+                (Apify & GetTranscribe). Please add your keys in the <strong>Settings</strong> tab
+                to enable features.
+            </div>
+
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchTab('discovery', this)">Discovery</button>
+                <button class="nav-tab" onclick="switchTab('transcription', this)">Transcription</button>
+                <button class="nav-tab" onclick="switchTab('settings', this)">Settings</button>
+            </div>
+
+        </header>
+
+        <!-- Discovery Tab -->
+        <div id="discovery-tab" class="tab-content active">
+            <div class="card">
+                <h2 class="card-title">Search Parameters</h2>
+
+                <div class="form-group">
+                    <label>Topic / Hashtag</label>
+                    <input type="text" id="searchTopic" placeholder="e.g., productivity tips, fitness motivation">
+                    <p class="help-text">Enter a keyword or hashtag to search for videos</p>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Platform</label>
+                        <select id="platformSelect">
+                            <option value="all">All Platforms (TikTok, Instagram, YouTube)</option>
+                            <option value="both">TikTok & Instagram</option>
+                            <option value="tiktok">TikTok Only</option>
+                            <option value="instagram">Instagram Only</option>
+                            <option value="youtube">YouTube Only</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Min Views</label>
+                        <input type="number" id="minViews" value="1000" min="0">
+                        <p class="help-text">Set to 0 to allow all; 50K+ for viral-only</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Min Likes</label>
+                        <input type="number" id="minLikes" value="100" min="0">
+                        <p class="help-text">Set to 0 to allow all</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Results</label>
+                        <input type="number" id="maxResults" value="25" min="10" max="200">
+                        <p class="help-text">Lower = faster search (e.g. 15–25 for quick results)</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Date Range (optional)</label>
+                    <div class="date-range-container">
+                        <input type="date" id="dateFrom" placeholder="From">
+                        <span class="date-separator">to</span>
+                        <input type="date" id="dateTo" placeholder="To">
+                    </div>
+                    <p class="help-text">Leave empty to search all time</p>
+                </div>
+
+                <div class="btn-group">
+                    <button
+                            id="searchVideosBtn"
+                            class="btn-primary"
+                            onclick="startDiscovery()">
+                        🔍 Search Videos
+                    </button>
+
+    <button class="btn-secondary" onclick="exportToSheets()">
+        📊 Export to Google Sheets
+    </button>
+</div>
+            </div>
+
+            <div id="discoveryLoading" class="loading">
+                <div class="spinner"></div>
+                <p>Searching for videos...</p>
+            </div>
+
+            <div id="discoveryStatus"></div>
+
+            <div id="discoveryResults"></div>
+        </div>
+
+        <!-- Transcription Tab -->
+        <div id="transcription-tab" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">Transcribe Videos</h2>
+
+                <div class="form-group">
+                    <label>Video URLs (One per line)</label>
+                    <textarea id="transcriptUrls" placeholder="https://www.tiktok.com/@user/video/123456&#10;https://www.instagram.com/reel/ABC123/"></textarea>
+                    <p class="help-text">Paste video URLs from TikTok or Instagram, one per line. <strong>Only videos with audio</strong> can be transcribed — use Reels/videos with speech; image posts and silent clips will fail. YouTube URLs sometimes fail to download; TikTok and Instagram Reels often work best.</p>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="startTranscription()">🎯 Transcribe Selected</button>
+                    <button class="btn-secondary" onclick="loadSelectedFromDiscovery()">↗️ Load from Discovery</button>
+                    <button class="btn-secondary" onclick="updateSheetsWithTranscripts()">📊 Update Google Sheets</button>
+                </div>
+            </div>
+
+            <div id="transcriptionLoading" class="loading">
+                <div class="spinner"></div>
+                <p>Transcribing videos...</p>
+            </div>
+
+            <div id="transcriptionStatus"></div>
+
+            <div id="transcriptionResults"></div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">API Tokens</h2>
+                <p class="help-text" style="margin-bottom: 1.5rem;">
+                    Enter separate Apify API tokens for each platform. Get your tokens from <a href="https://console.apify.com/account/integrations" target="_blank" class="link">Apify Console</a>.
+                </p>
+
+                <div class="form-group">
+                    <label>TikTok API Token</label>
+                    <input type="text" id="tiktokApiToken" placeholder="apify_api_...">
+                    <p class="help-text">Your Apify API token for TikTok scraping</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Instagram API Token</label>
+                    <input type="text" id="instagramApiToken" placeholder="apify_api_...">
+                    <p class="help-text">Your Apify API token for Instagram scraping</p>
+                </div>
+
+                <div class="form-group">
+                    <label>YouTube API Token</label>
+                    <input type="text" id="youtubeApiToken" placeholder="apify_api_...">
+                    <p class="help-text">Your Apify API token for YouTube scraping</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Scraper Configuration</h2>
+                <p class="help-text" style="margin-bottom: 1.5rem;">
+                    Configure which Apify actors to use for each platform. Leave blank to use defaults.
+                </p>
+
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label>TikTok Scraper Actor ID</label>
+                        <input type="text" id="tiktokActorId" placeholder="thescrapelab/tiktok-scraper-2-0">
+                        <p class="help-text">Default: thescrapelab/tiktok-scraper-2-0 (keyword search)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Instagram Scraper Actor ID</label>
+                        <input type="text" id="instagramActorId" placeholder="apify/instagram-hashtag-scraper">
+                        <p class="help-text">Default: apify/instagram-hashtag-scraper (hashtag search)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>YouTube Scraper Actor ID</label>
+                        <input type="text" id="youtubeActorId" placeholder="streamers/youtube-scraper">
+                        <p class="help-text">Default: streamers/youtube-scraper</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Transcription API</h2>
+
+                <div class="form-group">
+                    <label>GetTranscribe API Key</label>
+                    <input type="text" id="transcribeToken" placeholder="gtr_...">
+                    <p class="help-text">Get your key from <a href="https://gettranscribe.com" target="_blank" class="link">GetTranscribe Dashboard</a></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Google Sheets Integration</h2>
+
+                <div class="form-group">
+                    <label>Google Sheet ID</label>
+                    <input type="text" id="sheetId" placeholder="1ABC123XYZ789...">
+                    <p class="help-text">Copy from your sheet URL: docs.google.com/spreadsheets/d/<strong>YOUR_SHEET_ID</strong>/edit</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Sheet Name</label>
+                    <input type="text" id="sheetName" value="Sheet1" placeholder="Sheet1">
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="connectGoogleSheets()">🔗 Connect Google Sheets</button>
+                    <button class="btn-secondary" onclick="testSheetConnection()">✓ Test Connection</button>
+                </div>
+
+                <p class="help-text" style="margin-top: 1.5rem;">
+                    <strong>Note:</strong> Google Sheets integration requires OAuth authentication.
+                    Click "Connect Google Sheets" to authorize this app to read and write to your spreadsheet.
+                </p>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Data Management</h2>
+
+                <div class="btn-group">
+                    <button class="btn-secondary" onclick="saveSettings()">💾 Save Settings</button>
+                    <button class="btn-secondary" onclick="clearAllData()">🗑️ Clear All Data</button>
+                </div>
+            </div>
+
+            <div id="settingsStatus"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
