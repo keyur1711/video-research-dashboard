@@ -483,10 +483,13 @@
         <header>
             <h1>Video Research Dashboard</h1>
             <p class="subtitle">Discover trending social videos and transcribe content at scale</p>
-            <div class="notice">
+            <div id="mainNotice" class="notice">
                 ⚠️ <strong>Important:</strong> This dashboard requires third-party API keys
                 (Apify & GetTranscribe). Please add your keys in the <strong>Settings</strong> tab
                 to enable features.
+            </div>
+            <div id="file-origin-notice" class="notice" style="display: none; margin-top: 0.5rem; background: #fff8e5; border-color: #b8860b;">
+                📌 <strong>Opened as file:</strong> YouTube caption fallback may fail due to CORS. Run from a local server for best results: <code>npx serve</code> in this folder, then open <code>http://localhost:3000</code>.
             </div>
 
             <div class="nav-tabs">
@@ -603,10 +606,13 @@
 
         <!-- Settings Tab -->
         <div id="settings-tab" class="tab-content">
+            <div id="teamConfigBanner" class="notice" style="display: none; margin-bottom: 1.5rem; background: var(--accent-light); border-color: var(--accent);">
+                ✓ <strong>Team setup:</strong> API keys are configured for the whole team. You don’t need to enter them — just use Discovery and Transcription. Only an admin can change keys (in config.js).
+            </div>
             <div class="card">
                 <h2 class="card-title">API Tokens</h2>
                 <p class="help-text" style="margin-bottom: 1.5rem;">
-                    Enter separate Apify API tokens for each platform. Get your tokens from <a href="https://console.apify.com/account/integrations" target="_blank" class="link">Apify Console</a>.
+                    Enter separate Apify API tokens for each platform. Get your tokens from <a href="https://console.apify.com/account/integrations" target="_blank" class="link">Apify Console</a>. <em>If the site uses team config, these are read-only.</em>
                 </p>
 
                 <div class="form-group">
@@ -703,6 +709,14 @@
         </div>
     </div>
 
+    <!-- Team API config: set useTeamConfig true and add keys so the whole team can use the site without entering them in Settings -->
+    <script>
+    window.TEAM_CONFIG = {
+        useTeamConfig: true,
+        apifyToken: 'apify_api_36Cw17e9xBqjASJE1GRVYwHiRPAR1P2mafom',
+        getTranscribeKey: 'gtr_dbfe5f2fc2237502b64fd71e9396b6642643c09c53f44f62fb75af0af072e51a'
+    };
+    </script>
     <script src="app.js"></script>
 </body>
 </html>

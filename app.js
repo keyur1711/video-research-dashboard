@@ -87,48 +87,93 @@ function corsfetch(url, options = {}) {
 
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
+    if (window.location.protocol === 'file:') {
+        const notice = document.getElementById('file-origin-notice');
+        if (notice) notice.style.display = 'block';
+    }
 });
+
+// ===================================
+// TEAM API CONFIG (set in config.js — shared keys for the whole team)
+// ===================================
+
+function isTeamConfigActive() {
+    const c = window.TEAM_CONFIG;
+    return c && c.useTeamConfig && (c.apifyToken || c.getTranscribeKey);
+}
+
+function applyTeamConfig() {
+    if (!isTeamConfigActive()) return;
+    const c = window.TEAM_CONFIG;
+    if (c.apifyToken) {
+        state.settings.tiktokApiToken = c.apifyToken;
+        state.settings.instagramApiToken = c.apifyToken;
+        state.settings.youtubeApiToken = c.apifyToken;
+    }
+    if (c.getTranscribeKey) state.settings.transcribeToken = c.getTranscribeKey;
+}
 
 // ===================================
 // SETTINGS MANAGEMENT
 // ===================================
 
 function loadSettings() {
+    applyTeamConfig();
     const saved = localStorage.getItem('videoResearchSettings');
     if (saved) {
-        state.settings = JSON.parse(saved);
-        
-        // Load API tokens
-        document.getElementById('tiktokApiToken').value = state.settings.tiktokApiToken || '';
-        document.getElementById('instagramApiToken').value = state.settings.instagramApiToken || '';
-        document.getElementById('youtubeApiToken').value = state.settings.youtubeApiToken || '';
-        
-        // Load Actor IDs
-        document.getElementById('tiktokActorId').value = state.settings.tiktokActorId || '';
-        document.getElementById('instagramActorId').value = state.settings.instagramActorId || '';
-        document.getElementById('youtubeActorId').value = state.settings.youtubeActorId || '';
-        
-        // Load other settings
-        document.getElementById('transcribeToken').value = state.settings.transcribeToken || '';
-        document.getElementById('sheetId').value = state.settings.sheetId || '';
-        document.getElementById('sheetName').value = state.settings.sheetName || 'Sheet1';
+        const parsed = JSON.parse(saved);
+        if (!isTeamConfigActive()) {
+            state.settings.tiktokApiToken = parsed.tiktokApiToken || '';
+            state.settings.instagramApiToken = parsed.instagramApiToken || '';
+            state.settings.youtubeApiToken = parsed.youtubeApiToken || '';
+            state.settings.transcribeToken = parsed.transcribeToken || '';
+        }
+        state.settings.tiktokActorId = parsed.tiktokActorId || '';
+        state.settings.instagramActorId = parsed.instagramActorId || '';
+        state.settings.youtubeActorId = parsed.youtubeActorId || '';
+        state.settings.sheetId = parsed.sheetId || '';
+        state.settings.sheetName = parsed.sheetName || 'Sheet1';
+    }
+    // Populate form
+    const teamMode = isTeamConfigActive();
+    const apiPlaceholder = teamMode ? '•••••••• (set by team)' : 'apify_api_...';
+    const transPlaceholder = teamMode ? '•••••••• (set by team)' : 'gtr_...';
+    document.getElementById('tiktokApiToken').value = teamMode ? '' : (state.settings.tiktokApiToken || '');
+    document.getElementById('tiktokApiToken').placeholder = apiPlaceholder;
+    document.getElementById('tiktokApiToken').readOnly = teamMode;
+    document.getElementById('instagramApiToken').value = teamMode ? '' : (state.settings.instagramApiToken || '');
+    document.getElementById('instagramApiToken').placeholder = apiPlaceholder;
+    document.getElementById('instagramApiToken').readOnly = teamMode;
+    document.getElementById('youtubeApiToken').value = teamMode ? '' : (state.settings.youtubeApiToken || '');
+    document.getElementById('youtubeApiToken').placeholder = apiPlaceholder;
+    document.getElementById('youtubeApiToken').readOnly = teamMode;
+    document.getElementById('transcribeToken').value = teamMode ? '' : (state.settings.transcribeToken || '');
+    document.getElementById('transcribeToken').placeholder = transPlaceholder;
+    document.getElementById('transcribeToken').readOnly = teamMode;
+    document.getElementById('tiktokActorId').value = state.settings.tiktokActorId || '';
+    document.getElementById('instagramActorId').value = state.settings.instagramActorId || '';
+    document.getElementById('youtubeActorId').value = state.settings.youtubeActorId || '';
+    document.getElementById('sheetId').value = state.settings.sheetId || '';
+    document.getElementById('sheetName').value = state.settings.sheetName || 'Sheet1';
+    const teamBanner = document.getElementById('teamConfigBanner');
+    if (teamBanner) teamBanner.style.display = teamMode ? 'block' : 'none';
+    const mainNotice = document.getElementById('mainNotice');
+    if (mainNotice) {
+        mainNotice.style.display = teamMode ? 'none' : 'block';
     }
     updateDiscoveryButtonState();
 }
 
 function saveSettings() {
-    // Save API tokens
-    state.settings.tiktokApiToken = document.getElementById('tiktokApiToken').value;
-    state.settings.instagramApiToken = document.getElementById('instagramApiToken').value;
-    state.settings.youtubeApiToken = document.getElementById('youtubeApiToken').value;
-    
-    // Save Actor IDs
+    if (!isTeamConfigActive()) {
+        state.settings.tiktokApiToken = document.getElementById('tiktokApiToken').value;
+        state.settings.instagramApiToken = document.getElementById('instagramApiToken').value;
+        state.settings.youtubeApiToken = document.getElementById('youtubeApiToken').value;
+        state.settings.transcribeToken = document.getElementById('transcribeToken').value;
+    }
     state.settings.tiktokActorId = document.getElementById('tiktokActorId').value;
     state.settings.instagramActorId = document.getElementById('instagramActorId').value;
     state.settings.youtubeActorId = document.getElementById('youtubeActorId').value;
-    
-    // Save other settings
-    state.settings.transcribeToken = document.getElementById('transcribeToken').value;
     state.settings.sheetId = document.getElementById('sheetId').value;
     state.settings.sheetName = document.getElementById('sheetName').value;
 
@@ -645,29 +690,48 @@ async function startTranscription() {
         return;
     }
 
-    if (!state.settings.transcribeToken) {
-        showStatus('transcriptionStatus', 'Please configure your GetTranscribe API token in Settings', 'error');
+    const urls = urlsText.split('\n').map(url => url.trim()).filter(Boolean);
+    const hasNonYouTube = urls.some(u => !getYouTubeVideoId(u));
+    if (hasNonYouTube && !state.settings.transcribeToken) {
+        showStatus('transcriptionStatus', 'Please configure your GetTranscribe API key in Settings (required for TikTok/Instagram).', 'error');
         return;
     }
 
-    const urls = urlsText.split('\n').map(url => url.trim()).filter(Boolean);
-
     showLoading('transcriptionLoading', true);
-    showStatus('transcriptionStatus', `Transcribing ${urls.length} videos...`, 'info');
-
+    const total = urls.length;
     const results = [];
 
-    for (const url of urls) {
-        try {
-            const transcript = await transcribeVideo(url);
+    for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const n = i + 1;
+        showStatus('transcriptionStatus', `Transcribing video ${n} of ${total}...`, 'info');
+
+        const ytId = getYouTubeVideoId(url);
+
+        // For YouTube: try captions first (free, no API key), then GetTranscribe if needed
+        if (ytId) {
+            const captionText = await tryYouTubeCaptions(ytId);
+            if (captionText && captionText.length > 20) {
+                results.push({ url, transcript: captionText, status: 'success' });
+                continue;
+            }
+        }
+
+        // Use GetTranscribe for non-YouTube or when YouTube captions failed
+        if (!state.settings.transcribeToken) {
             results.push({
                 url,
-                transcript,
-                status: 'success'
+                transcript: '',
+                status: 'error',
+                error: ytId ? 'No captions found for this YouTube video. Add GetTranscribe key in Settings to try audio transcription.' : 'GetTranscribe API key required in Settings.'
             });
+            continue;
+        }
+
+        try {
+            const transcript = await transcribeVideo(url);
+            results.push({ url, transcript, status: 'success' });
         } catch (error) {
-            // For YouTube: try built-in captions when GetTranscribe fails
-            const ytId = getYouTubeVideoId(url);
             if (ytId) {
                 const captionText = await tryYouTubeCaptions(ytId);
                 if (captionText && captionText.length > 20) {
@@ -714,7 +778,7 @@ function parseGetTranscribeError(msg) {
         return 'No audio in this media. Use a video with speech (e.g. Reels), not image posts or silent clips.';
     }
     if (msg.includes('Failed to download') || msg.includes('all methods failed') || msg.includes('YouTube audio')) {
-        return 'GetTranscribe couldn\'t download this video\'s audio (common with some YouTube videos). Try TikTok or Instagram Reels URLs, or a different public YouTube video.';
+        return 'GetTranscribe couldn\'t download this video\'s audio. Run the app from a local server (npx serve) so the YouTube caption fallback can work; or try TikTok/Instagram Reels URLs.';
     }
     try {
         const json = msg.replace(/^GetTranscribe error:\s*/, '').trim();
@@ -732,25 +796,79 @@ function getYouTubeVideoId(url) {
     return m ? m[1] : null;
 }
 
-// Try to get captions from YouTube (no API key). Works when video has captions.
+// Fetch URL via CORS proxy. Tries multiple proxies (full watch page often returns 413, so we prefer embed).
+async function fetchViaProxy(url) {
+    const proxies = [
+        () => fetch(CORS_PROXY + encodeURIComponent(url)),
+        () => fetch('https://corsproxy.org/?' + encodeURIComponent(url)),
+        () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url))
+    ];
+    for (const proxy of proxies) {
+        try {
+            const res = await proxy();
+            if (res && res.ok) return res;
+        } catch (_) {}
+    }
+    return null;
+}
+
+// Try to get captions from YouTube (no API key). Uses embed page (smaller, avoids 413).
 async function tryYouTubeCaptions(videoId) {
-    const timedtextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en`;
+    // Prefer embed page: much smaller than watch page, avoids "413 Payload Too Large" from proxies
+    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
     try {
-        const proxyUrl = CORS_PROXY + encodeURIComponent(timedtextUrl);
-        const res = await fetch(proxyUrl);
-        if (!res.ok) return null;
-        const text = await res.text();
-        if (!text || text.length < 10) return null;
-        // Parse XML: <text start="..." dur="...">content</text> or plain text lines
-        const textNodes = text.match(/<text[^>]*>([^<]*)<\/text>/g);
+        const pageRes = await fetchViaProxy(embedUrl);
+        if (!pageRes || !pageRes.ok) return null;
+        const html = await pageRes.text();
+        // 2. Extract baseUrl from captionTracks in page JSON (multiple patterns for different page versions)
+        let captionUrl = null;
+        const patterns = [
+            /"baseUrl"\s*:\s*"(https?:\\?\/\\?\/[^"]+timedtext[^"]*)"/,
+            /"captionTracks":\s*\[\s*\{[\s\S]*?"baseUrl"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+            /"baseUrl"\s*:\s*"((?:https?:[^"]*timedtext[^"]*))"/
+        ];
+        for (const re of patterns) {
+            const m = html.match(re);
+            if (m && m[1]) {
+                captionUrl = m[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/\\"/g, '"');
+                if (captionUrl.includes('timedtext')) break;
+                captionUrl = null;
+            }
+        }
+        if (!captionUrl) {
+            // Fallback: direct timedtext (works for some videos)
+            captionUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en`;
+        } else {
+            captionUrl += (captionUrl.includes('?') ? '&' : '?') + 'fmt=json3';
+        }
+        // 3. Fetch caption content via proxy
+        const capRes = await fetchViaProxy(captionUrl);
+        if (!capRes || !capRes.ok) return null;
+        const body = await capRes.text();
+        if (!body || body.length < 5) return null;
+        // 4. Parse: json3 format has events[].segs[].utf8, XML has <text>...</text>
+        try {
+            const json = JSON.parse(body);
+            if (json.events) {
+                const text = json.events
+                    .filter(e => e.segs)
+                    .flatMap(e => e.segs.map(s => s.utf8 || ''))
+                    .join(' ')
+                    .replace(/\n/g, ' ')
+                    .trim();
+                if (text.length > 20) return text;
+            }
+        } catch (_) {}
+        const textNodes = body.match(/<text[^>]*>([^<]*)<\/text>/g);
         if (textNodes && textNodes.length > 0) {
-            return textNodes
-                .map(node => node.replace(/<text[^>]*>|<\/text>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'"))
+            const text = textNodes
+                .map(n => n.replace(/<text[^>]*>|<\/text>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'))
                 .join(' ')
                 .trim();
+            if (text.length > 20) return text;
         }
-        // Plain text or other format: use as-is, strip tags
-        return text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        const plain = body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        return plain.length > 20 ? plain : null;
     } catch (_) {
         return null;
     }
@@ -763,7 +881,7 @@ async function transcribeVideo(url) {
             'Content-Type': 'application/json',
             'x-api-key': state.settings.transcribeToken
         },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url: url.trim(), language: 'en' })
     });
 
     if (!response.ok) {
@@ -773,11 +891,12 @@ async function transcribeVideo(url) {
 
     const data = await response.json();
 
-    if (!data.transcript && !data.text) {
+    // API returns "transcription" (not "transcript" or "text")
+    const text = data.transcription || data.transcript || data.text;
+    if (!text || (typeof text === 'string' && text.trim().length === 0)) {
         throw new Error('Transcript not available for this video');
     }
-
-    return data.transcript || data.text;
+    return typeof text === 'string' ? text : String(text);
 }
 
 
